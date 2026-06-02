@@ -90,7 +90,7 @@ export function ZIndexUpload({ raceId, race, entries }: ZIndexUploadProps) {
         <input
           ref={fileRef}
           type="file"
-          accept=".pdf,.txt"
+          accept=".csv,.pdf,.txt"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -107,7 +107,7 @@ export function ZIndexUpload({ raceId, race, entries }: ZIndexUploadProps) {
             {uploading ? "解析中..." : "Z指数PDFをタップしてアップロード"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            TARGETからダウンロードしたPDF / テキストファイル
+            TARGETからエクスポートしたCSVファイル
           </p>
         </div>
       </div>
