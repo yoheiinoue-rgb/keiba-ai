@@ -20,18 +20,9 @@ export async function POST(request: Request) {
   } else if (fileName.endsWith(".txt")) {
     const text = buffer.toString("utf-8");
     zIndexData = parseZIndexFromText(text);
-  } else if (
-    fileName.endsWith(".pdf") ||
-    file.type === "application/pdf" ||
-    (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46)
-  ) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
-    const parsed = await pdfParse(buffer);
-    zIndexData = parseZIndexFromText(parsed.text as string);
   } else {
     return Response.json(
-      { error: "CSV・PDF・テキストファイルを選択してください" },
+      { error: "CSVファイル（TARGETエクスポート）を選択してください" },
       { status: 400 }
     );
   }
