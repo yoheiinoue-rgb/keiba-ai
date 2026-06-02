@@ -5,37 +5,47 @@ import type { ZIndexData } from "@/types/analysis";
  * 馬番ごとのZ指数を返す
  */
 export function parseZIndexFromText(text: string): ZIndexData[] {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const seen = new Set<number>();
   const results: ZIndexData[] = [];
 
-  // パターン1: "1. ホース名 ... 85.3" のような形式
-  // パターン2: テーブル形式 "馬番 馬名 Z指数"
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  function add(horseNumber: number, horseName: string, zIndex: number) {
+    if (horseNumber >= 1 && horseNumber <= 18 && !isNaN(zIndex) && zIndex > 0 && zIndex < 300 && !seen.has(horseNumber)) {
+      seen.add(horseNumber);
+      results.push({ horseNumber, horseName, zIndex });
+    }
+  }
 
+  // パターン1: "1 馬名 85.3" / "1. 馬名 85.3" / "1　馬名　85.3"
   for (const line of lines) {
-    // 馬番（1〜18）+ 馬名 + 数値（Z指数）を抽出
-    const match = line.match(/^(\d{1,2})[.\s　]+([^\d\s].+?)\s+([\d]{2,3}(?:\.\d)?)\s*$/);
-    if (match) {
-      const horseNumber = parseInt(match[1], 10);
-      const horseName = match[2].trim();
-      const zIndex = parseFloat(match[3]);
-      if (horseNumber >= 1 && horseNumber <= 18 && !isNaN(zIndex)) {
-        results.push({ horseNumber, horseName, zIndex });
+    const m = line.match(/^(\d{1,2})[.\s　]+([^\d\s].+?)\s+([\d]{2,3}(?:\.\d)?)\s*$/);
+    if (m) add(parseInt(m[1], 10), m[2].trim(), parseFloat(m[3]));
+  }
+
+  // パターン2: TARGET Z指数 "馬番 馬名 Z指数 ..." 複数列
+  if (results.length === 0) {
+    for (const line of lines) {
+      const parts = line.split(/[\s\t　]+/);
+      if (parts.length >= 2) {
+        const num = parseInt(parts[0], 10);
+        // 末尾から数値を探す
+        for (let i = parts.length - 1; i >= 1; i--) {
+          const val = parseFloat(parts[i]);
+          if (!isNaN(val) && val > 0 && val < 300) {
+            const name = parts.slice(1, i).join("") || parts[1] || "";
+            add(num, name, val);
+            break;
+          }
+        }
       }
     }
   }
 
-  // パターン2: スペース区切りのテーブル（TARGET形式に多い）
+  // パターン3: 行に馬番と数値だけ含まれる最小形式 "1 85.3"
   if (results.length === 0) {
     for (const line of lines) {
-      const parts = line.split(/\s+/);
-      if (parts.length >= 3) {
-        const num = parseInt(parts[0], 10);
-        const zVal = parseFloat(parts[parts.length - 1]);
-        const name = parts.slice(1, parts.length - 1).join("");
-        if (num >= 1 && num <= 18 && !isNaN(zVal) && zVal > 0 && zVal < 200) {
-          results.push({ horseNumber: num, horseName: name, zIndex: zVal });
-        }
-      }
+      const m = line.match(/^(\d{1,2})\s+([\d]{2,3}(?:\.\d)?)\s*$/);
+      if (m) add(parseInt(m[1], 10), `${m[1]}番`, parseFloat(m[2]));
     }
   }
 
@@ -43,9 +53,10 @@ export function parseZIndexFromText(text: string): ZIndexData[] {
 }
 
 export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
-  // pdf-parseはサーバーサイドのみ
+  // Vercelサーバーレス環境では pdf-parse のメイン index.js がテストコードを
+  // 実行しようとしてエラーになるため、lib 直下を直接 require する
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse");
+  const pdfParse = require("pdf-parse/lib/pdf-parse.js");
   const parsed = await pdfParse(buffer);
   return parsed.text;
 }
